@@ -47,6 +47,8 @@ cutout_side_thickness = 3;
 extrusion_insert_count = 2; // [0, 1, 2]
 // Set this to control how much space the nuts have. Hammer nuts should just work but for t nuts you will need to set a specific width.
 specific_bottom_nut_space = 0;
+// Bracket angle
+bracket_angle = 90; // [90 : 1 : 180]
 
 
 
@@ -96,7 +98,9 @@ module bracket(width, wall_thickness, is_first) {
     difference() {
         union() {
             translate([-width/2, 0, 0]) cube([width, side_length, side_thickness]); // Bottom wall
-            translate([-width/2, side_thickness, 0]) rotate([90, 0, 0]) cube([width, side_length, side_thickness]); // Top wall
+            rotate([bracket_angle-90,0,0]) {
+                translate([-width/2, side_thickness, 0]) rotate([90, 0, 0]) cube([width, side_length, side_thickness]); // Top wall
+            }
             translate([width/2 - wall_thickness, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Left wall
             if(!single_wall_mode) {
                 translate([-width/2, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Right wall
@@ -105,25 +109,41 @@ module bracket(width, wall_thickness, is_first) {
             // Make the parts which go into the extrusions, with chamfers
             if (extrusion_insert_count > 0) difference() {
                 union() {
-                    if (extrusion_insert_count > 1) {
-                        extrusion_insert();
-                        translate([-extrusion_insert_width/2, -extrusion_insert_height, -extrusion_insert_height]) cube([extrusion_insert_width, extrusion_insert_height, extrusion_insert_height]);
-                    }
-                    if(extrusion_insert_count > 0) {
+                    if (extrusion_insert_count > 0) {
                         translate([0, 0, 0]) rotate([90, 0, 180]) extrusion_insert();
+                    }
+                    if (extrusion_insert_count > 1) {
+                        rotate([bracket_angle-90,0,0]) extrusion_insert();
+                        extrusion_insert_corner();
                     }
                     
                 }
-                extrusion_chamfer();
+                // Make chamfers
+                rotate([bracket_angle-90,0,0]) extrusion_chamfer();
                 translate([0, 0, 0]) rotate([90, 0, 180]) extrusion_chamfer();
             }
             bridge(bridge_size, width, wall_thickness);
         };
-        translate([-width/2 - e, side_length + side_thickness*0.6, 0]) rotate([45, 0, 0]) cube([width + e * 2, side_length, side_length*2]); // Cutoff for better printing
+
+        // Cutoff for easier printing
+        cutoff_amount = 0.5*(180-bracket_angle)/90 * side_thickness;
+        angle = (180-bracket_angle)/2;
+        magic_height_number = 42;
+        translate([0, side_length+e, side_thickness-cutoff_amount])
+            rotate([90-angle, 0, 0])
+            linear_extrude(height=(side_length+e)*2, convexity=2)
+            polygon(points = [
+                [width/2+e, 0],
+                [-width/2-e, 0],
+                [-width/2-e, magic_height_number],
+                [width/2+e, magic_height_number]
+            ]);
         
         // Make screw holes
         side_screw_holes(bottom_screw_count, bottom_screw_distance, bottom_screw_elongation); // Bottom screws
-        rotate([270, 180, 0]) side_screw_holes(top_screw_count, top_screw_distance, top_screw_elongation); // Top screws
+        rotate([bracket_angle-90,0,0]) {
+            rotate([270, 180, 0]) side_screw_holes(top_screw_count, top_screw_distance, top_screw_elongation); // Top screws
+        }
         cutout();
     }
 }
@@ -148,8 +168,11 @@ module cutout() {
 }
 
 module wall(w, l, wall_thickness) {
-    linear_extrude(height = wall_thickness, convexity = 2) polygon(points = [[side_thickness, side_thickness], [side_length, side_thickness], [side_thickness, side_length]]);
-}
+    linear_extrude(height = wall_thickness, convexity = 2)
+        polygon(points = [[side_thickness*tan((180-bracket_angle)/2), side_thickness],
+                          [side_length, side_thickness],
+                          [-side_length*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90), side_length*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90)]]);
+    }
 
 module screw(hole_size, head_size, screw_elongation = 0) {
     if (screw_elongation > 0) {
@@ -179,7 +202,9 @@ module bridge(size, width, wall_thickness) {
         translate([width/2 - e, 0, 0])
             rotate([0, 270, 0])
             linear_extrude(height = width - 2*e, convexity = 2)
-            polygon([[side_thickness, side_thickness], [side_thickness + size, side_thickness], [side_thickness, side_thickness + size]]); // Main bridge
+             polygon([[side_thickness, side_thickness*tan((180-bracket_angle)/2)],
+                       [size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90), -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90)], 
+                       [side_thickness, side_thickness + size]]); // Main bridge
         translate([width/2-wall_thickness-c, 0, 0])
             bridge_side(size, [[0, 0], [c, 0], [c, c]]); // Left
         if(!single_wall_mode) {
@@ -192,7 +217,10 @@ module bridge(size, width, wall_thickness) {
 module bridge_side(size, polygon_points){
     hull() {
         translate([0, size+side_thickness, side_thickness]) linear_extrude(height = e, convexity = 2) polygon(points = polygon_points);
-        translate([0, side_thickness, size+side_thickness]) rotate([90,0,0]) linear_extrude(height = e, convexity = 2) polygon(points = polygon_points);
+        translate([0, -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90), size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90)]) 
+            rotate([bracket_angle,0,0])
+                linear_extrude(height = e, convexity = 2)
+                    polygon(points = polygon_points);
     }
 }
 
@@ -209,6 +237,15 @@ module extrusion_chamfer(height = .5) {
         translate([x, -height, -e]) rotate([0, 0, 45]) cube([length, length, z+2*e]);
     }
 }
+module extrusion_insert_corner() {
+    translate([extrusion_insert_width/2,0,-extrusion_insert_height])
+        rotate([90,0,-90])
+        linear_extrude(extrusion_insert_width, center = false, convexity = 10, twist = 0)
+            polygon(points=[[0,0],
+                           [0,extrusion_insert_height],
+                           [extrusion_insert_height*cos(bracket_angle-90),(extrusion_insert_height-extrusion_insert_height*sin(bracket_angle-90))],
+                           [extrusion_insert_height*tan((180-bracket_angle)/2),0]]);
+    }
 
 function screw_distance_from_edge(screw_count, screw_elongation) =
     screw_count > 1
