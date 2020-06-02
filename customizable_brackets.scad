@@ -196,14 +196,11 @@ module screw(hole_size, head_size, screw_elongation = 0) {
 }
 
 module bridge(size, width, wall_thickness) {
-    right = width - 2*wall_thickness + 2;
     c = screw_head_size / 3;
-    top = size + c;
-    x = width/2-wall_thickness-c;
     union() {
-        translate([width/2 - e, 0, 0])
+        translate([width/2, 0, 0])
             rotate([0, 270, 0])
-            linear_extrude(height = width - 2*e, convexity = 2)
+            linear_extrude(height = width, convexity = 2)
              polygon([[side_thickness, side_thickness*tan((180-bracket_angle)/2)],
                        [size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90), -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90)], 
                        [side_thickness, side_thickness + size]]); // Main bridge
@@ -218,7 +215,7 @@ module bridge(size, width, wall_thickness) {
 
 module bridge_side(size, polygon_points){
     hull() {
-        translate([0, size+side_thickness, side_thickness]) linear_extrude(height = e, convexity = 2) polygon(points = polygon_points);
+        translate([0, size+side_thickness, side_thickness-e]) linear_extrude(height = e, convexity = 2) polygon(points = polygon_points);
         translate([0, -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90), size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90)]) 
             rotate([bracket_angle,0,0])
                 linear_extrude(height = e, convexity = 2)
