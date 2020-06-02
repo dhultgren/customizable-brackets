@@ -36,15 +36,15 @@ bottom_screw_elongation = 0;
 extrusion_insert_width = 6;
 // Use this when you want multiple connected brackets, for 4020 and similar. 20 for 2020 extrusions, 30 for 3030 and so on.
 extrusion_base = 20;
-// Set to true if you only want a single wall. Not compatible with multiple bracket mode.
-single_wall_mode = 0; // [0: false, 1:true]
+// Set how many walls you want. One wall doesn't play well with multiple bracket mode.
+wall_count = 0; // [0 : 1 : 2]
 // Set lower if you think the side walls are too thick.
 max_wall_thickness = 8;
 // Set this if you want to use these above your existing brackets. Typical 2020 brackets have a size of 20 and side thickness of 3.
 cutout_size = 0;
 cutout_side_thickness = 3;
 // Decrease this if you don't want extrusion inserts on both sides. Intended for using these entirely or partially on non-extrusions.
-extrusion_insert_count = 2; // [0, 1, 2]
+extrusion_insert_count = 2; // [0 : 1 : 2]
 // Set this to control how much space the nuts have. Hammer nuts should just work but for t nuts you will need to set a specific width.
 specific_bottom_nut_space = 0;
 // Bracket angle
@@ -101,8 +101,10 @@ module bracket(width, wall_thickness, is_first) {
             rotate([bracket_angle-90,0,0]) {
                 translate([-width/2, side_thickness, 0]) rotate([90, 0, 0]) cube([width, side_length, side_thickness]); // Top wall
             }
-            translate([width/2 - wall_thickness, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Left wall
-            if(!single_wall_mode) {
+            if (wall_count >= 1) {
+                translate([width/2 - wall_thickness, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Left wall
+            }
+            if (wall_count >= 2) {
                 translate([-width/2, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Right wall
             }
             
@@ -205,11 +207,11 @@ module bridge(size, width, wall_thickness) {
              polygon([[side_thickness, side_thickness*tan((180-bracket_angle)/2)],
                        [size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90), -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90)], 
                        [side_thickness, side_thickness + size]]); // Main bridge
-        translate([width/2-wall_thickness-c, 0, 0])
-            bridge_side(size, [[0, 0], [c, 0], [c, c]]); // Left
-        if(!single_wall_mode) {
-            translate([-width/2+wall_thickness, 0, 0])
-                bridge_side(size, [[0, 0], [c, 0], [0, c]]); // Right
+        if (wall_count >= 1) {
+            translate([width/2-wall_thickness-c, 0, 0]) bridge_side(size, [[0, 0], [c, 0], [c, c]]); // Left
+        }
+        if (wall_count >= 2) {
+            translate([-width/2+wall_thickness, 0, 0]) bridge_side(size, [[0, 0], [c, 0], [0, c]]); // Right
         }
     }
 }
