@@ -75,8 +75,6 @@ top_screw_distance = screw_distance_from_edge(top_screw_count, top_screw_elongat
 bottom_screw_distance = screw_distance_from_edge(bottom_screw_count, bottom_screw_elongation);
 screw_distance_from_edge = max(top_screw_distance, bottom_screw_distance);
 
-echo(bridge(top_screw_count, screw_head_size+top_screw_elongation, top_screw_distance));
-echo(bridge(bottom_screw_count, screw_head_size+bottom_screw_elongation, bottom_screw_distance));
 bridge_size = min(
     bridge(top_screw_count, screw_head_size+top_screw_elongation, top_screw_distance),
     bridge(bottom_screw_count, screw_head_size+bottom_screw_elongation, bottom_screw_distance));
@@ -129,10 +127,9 @@ module bracket(width, wall_thickness, is_first) {
 
         // Cutoff for easier printing
         cutoff_amount = 0.5*(180-bracket_angle)/90 * side_thickness;
-        angle = (180-bracket_angle)/2;
         magic_height_number = 42;
         translate([0, side_length+e, side_thickness-cutoff_amount])
-            rotate([90-angle, 0, 0])
+            rotate([90-(180-bracket_angle)/2, 0, 0])
             linear_extrude(height=(side_length+e)*2, convexity=2)
             polygon(points = [
                 [width/2+e, 0],
@@ -161,12 +158,18 @@ module side_screw_holes(screw_count, screw_distance_from_edge, screw_elongation,
 module cutout() {
     zero = -e-extrusion_insert_height;
     full_width = cutout_size+cutout_margin;
-    if (cutout_size > 0) translate([extrusion_width/2+e, 0, 0]) rotate([0, -90, 0]) linear_extrude(height = extrusion_width+2*e, convexity = 2) polygon(points = [
-        [zero, zero],
-        [zero, full_width],
-        [cutout_side_thickness+cutout_margin, full_width],
-        [full_width, cutout_side_thickness+cutout_margin],
-        [full_width, zero]]);
+    if (cutout_size > 0) {
+        assert(bracket_angle == 90, "Can't use cutout with bracket angles other than 90 degrees");
+        translate([extrusion_width/2+e, 0, 0])
+            rotate([0, -90, 0])
+            linear_extrude(height = extrusion_width+2*e, convexity = 2)
+            polygon(points = [
+            [zero, zero],
+            [zero, full_width],
+            [cutout_side_thickness+cutout_margin, full_width],
+            [full_width, cutout_side_thickness+cutout_margin],
+            [full_width, zero]]);
+    }
 }
 
 module wall(w, l, wall_thickness) {
