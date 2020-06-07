@@ -47,7 +47,7 @@ cutout_side_thickness = 3;
 extrusion_insert_count = 2; // [0 : 1 : 2]
 // Set this to control how much space the nuts have. Hammer nuts should just work but for t nuts you will need to set a specific width.
 specific_bottom_nut_space = 0;
-// Bracket angle
+// Bracket angle for all your non-90 degree needs.
 bracket_angle = 90; // [45 : 1 : 180]
 
 
@@ -65,19 +65,19 @@ bracket_angle = 90; // [45 : 1 : 180]
 /* [Hidden] */
 // preview[view:north east, tilt:top diagonal]
 
-// You might want to decrease this if you don't use hammer nuts
+// How far into the extrusions the inserts go. Should be fine as it is.
 extrusion_insert_height = 3;
 
 cutout_margin = 0.3;
 screw_head_margin = 0.5;
 e = 0.05;
-top_screw_distance = screw_distance_from_edge(top_screw_count, top_screw_elongation);
-bottom_screw_distance = screw_distance_from_edge(bottom_screw_count, bottom_screw_elongation);
+top_screw_distance = screw_distance_from_edge(side_length, side_thickness, top_screw_count, screw_hole_size, screw_head_size, screw_head_margin, top_screw_elongation, cutout_size);
+bottom_screw_distance = screw_distance_from_edge(side_length, side_thickness, bottom_screw_count, screw_hole_size, screw_head_size, screw_head_margin, top_screw_elongation, cutout_size);
 screw_distance_from_edge = max(top_screw_distance, bottom_screw_distance);
 
 bridge_size = min(
-    bridge(top_screw_count, screw_head_size+top_screw_elongation, top_screw_distance),
-    bridge(bottom_screw_count, screw_head_size+bottom_screw_elongation, bottom_screw_distance));
+    bridge(top_screw_count, top_screw_elongation+screw_head_size, top_screw_distance),
+    bridge(bottom_screw_count, bottom_screw_elongation+screw_head_size, bottom_screw_distance));
 
 main();
 
@@ -205,7 +205,15 @@ module screw(hole_size, head_size, screw_elongation = 0) {
         ? specific_bottom_nut_space
         : max(screw_hole_size*2+1, screw_hole_size+screw_elongation+1); // This works for typical hammer nuts
     translate([-extrusion_insert_width/2-e, -bottom_nut_space/2, -extrusion_insert_height-e]) cube([extrusion_insert_width + 2*e, bottom_nut_space,extrusion_insert_height+2*e]); // Remove extrusion insert below screw
-    #translate([0, 0, side_thickness+2*e]) cylinder(h = 3, r = head_size / 2, $fn = 32); // Screw head, to make sure they don't hit each other
+    translate([0, 0, side_thickness+2*e]) display_screw_head(head_size, screw_elongation);
+}
+
+module display_screw_head(head_size, screw_elongation) {
+    // Screw head, to make sure they don't hit each other
+    #hull() {
+        translate([0, screw_elongation/2, 0]) cylinder(h = 3, r = head_size / 2, $fn = 32);
+        translate([0, -screw_elongation/2, 0]) cylinder(h = 3, r = head_size / 2, $fn = 32);
+    }
 }
 
 module bridge(size, width, wall_thickness) {
@@ -265,14 +273,51 @@ module extrusion_insert_corner() {
     }
 }
 
-function screw_distance_from_edge(screw_count, screw_elongation) =
+function screw_distance_from_edge(side_length, side_thickness, screw_count, screw_hole_size, screw_head_size, screw_head_margin, screw_elongation, cutout_size) =
+    let(screw_head_height = 3,
+    screw_required_length = screw_elongation+screw_head_size,
+    usable_side = side_length-side_thickness*(cutout_size > 0 ? 0.5 : 1.5)-cutout_size-screw_required_length*screw_count,
+    min_screw_distance = side_thickness*0.5+screw_required_length/2)
     screw_count > 1
-        ? max(screw_head_size/2 + screw_elongation/2, min(6.5, side_length/3)) + screw_head_margin/2
-        : max((side_length-side_thickness)/2.5, screw_hole_size+screw_elongation/2);
+        ? min_screw_distance
+        : (usable_side-screw_head_height)*0.4+min_screw_distance;
 
 function bridge(screw_count, total_screw_size, screw_distance_from_edge) =
     screw_count > 1
-        ? min((side_length - side_thickness - 2*total_screw_size + cutout_size + cutout_margin) / (side_length/20),
-            max(side_length - side_thickness - total_screw_size*screw_count, 0))
+        ? max(side_length - side_thickness - screw_distance_from_edge - total_screw_size*screw_count + cutout_size, 0)
         : side_length - screw_distance_from_edge - total_screw_size / 2 - side_thickness - screw_head_margin;
 
+//unit_tests();
+module unit_tests() {
+    screw_distance_from_edge_tests();
+}
+
+module screw_distance_from_edge_tests() {
+    // basic 30mm side
+    assert_with_message(screw_distance_from_edge(30, 5, 1, 5, 10, 0.5, 0, 0), 11.3);
+    // basic 40mm side
+    assert_with_message(screw_distance_from_edge(40, 5, 1, 5, 10, 0.5, 0, 0), 15.3);
+    // thicker sides
+    assert_with_message(screw_distance_from_edge(30, 10, 1, 5, 10, 0.5, 0, 0), 10.8);
+    // elongated screw holes
+    assert_with_message(screw_distance_from_edge(30, 5, 1, 5, 10, 0.5, 15, 0), 12.8);
+    // cutout
+    assert_with_message(screw_distance_from_edge(40, 5, 1, 5, 10, 0.5, 0, 20), 9.3);
+
+    // basic two screws
+    assert_with_message(screw_distance_from_edge(30, 5, 2, 5, 10, 0.5, 0, 0), 7.5);
+    // thicker sides
+    assert_with_message(screw_distance_from_edge(50, 10, 2, 5, 10, 0.5, 0, 0), 10);
+    // two screws with cutout
+    assert_with_message(screw_distance_from_edge(50, 5, 2, 5, 10, 0.5, 0, 10), 7.5);
+    // two elongated screws
+    assert_with_message(screw_distance_from_edge(50, 5, 2, 5, 10, 0.5, 10, 0), 12.5);
+}
+
+
+module assert_with_message(actual, expected) {
+    allowed_error = 0.0001;
+    if (abs(actual-expected) > allowed_error) {
+        assert(expected == actual, str("Expected ", expected, " but got ", actual));
+    }
+}
