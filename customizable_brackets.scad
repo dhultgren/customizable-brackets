@@ -37,7 +37,7 @@ extrusion_insert_width = 6;
 // Use this when you want multiple connected brackets, for 4020 and similar. 20 for 2020 extrusions, 30 for 3030 and so on.
 extrusion_base = 20;
 // Set how many walls you want. One wall doesn't play well with multiple bracket mode.
-wall_count = 0; // [0 : 1 : 2]
+wall_count = 2; // [0 : 1 : 2]
 // Set lower if you think the side walls are too thick.
 max_wall_thickness = 8;
 // Set this if you want to use these above your existing brackets. Typical 2020 brackets have a size of 20 and side thickness of 3.
@@ -48,7 +48,7 @@ extrusion_insert_count = 2; // [0 : 1 : 2]
 // Set this to control how much space the nuts have. Hammer nuts should just work but for t nuts you will need to set a specific width.
 specific_bottom_nut_space = 0;
 // Bracket angle
-bracket_angle = 90; // [90 : 1 : 180]
+bracket_angle = 90; // [45 : 1 : 180]
 
 
 
@@ -92,13 +92,23 @@ module main() {
     }
 }
 
-module bracket(width, wall_thickness, is_first) {
+module bracket_sides(width) {
     difference() {
         union() {
             translate([-width/2, 0, 0]) cube([width, side_length, side_thickness]); // Bottom wall
-            rotate([bracket_angle-90,0,0]) {
-                translate([-width/2, side_thickness, 0]) rotate([90, 0, 0]) cube([width, side_length, side_thickness]); // Top wall
-            }
+            rotate([bracket_angle, 0, 0]) translate([-width/2, 0, -side_thickness]) cube([width, side_length, side_thickness]); // Top wall
+        }
+        if (bracket_angle < 90) {
+            translate([-width/2-e, 0, -side_thickness]) cube([width+2*e, side_length, side_thickness]); // Bottom wall cutoff
+            rotate([bracket_angle, 0, 0]) translate([-width/2-e, 0, 0]) cube([width+2*e, side_length, side_thickness]); // Top wall cutoff
+        }
+    }
+}
+
+module bracket(width, wall_thickness, is_first) {
+    difference() {
+        union() {
+            bracket_sides(width);
             if (wall_count >= 1) {
                 translate([width/2 - wall_thickness, 0, 0]) rotate([90, 0, 90]) wall(width, side_length, wall_thickness); // Left wall
             }
@@ -231,23 +241,29 @@ module extrusion_insert() {
 }
 
 module extrusion_chamfer(height = .5) {
+    added_length_for_low_angles = extrusion_insert_height;
     x = extrusion_insert_width;
-    z = side_length + extrusion_insert_height;
+    z = side_length + extrusion_insert_height + added_length_for_low_angles;
     length = sqrt(height * height * 2);
     translate([-extrusion_insert_width/2, -extrusion_insert_height, -extrusion_insert_height]) union() {
-        translate([0, -height, -e]) rotate([0, 0, 45]) cube([length, length, z+2*e]);
-        translate([x, -height, -e]) rotate([0, 0, 45]) cube([length, length, z+2*e]);
+        translate([0, -height, -added_length_for_low_angles-e]) rotate([0, 0, 45]) cube([length, length, z+2*e]);
+        translate([x, -height, -added_length_for_low_angles-e]) rotate([0, 0, 45]) cube([length, length, z+2*e]);
     }
 }
 module extrusion_insert_corner() {
-    translate([extrusion_insert_width/2,0,-extrusion_insert_height])
-        rotate([90,0,-90])
-        linear_extrude(extrusion_insert_width, center = false, convexity = 10, twist = 0)
-            polygon(points=[[0,0],
-                           [0,extrusion_insert_height],
-                           [extrusion_insert_height*cos(bracket_angle-90),(extrusion_insert_height-extrusion_insert_height*sin(bracket_angle-90))],
-                           [extrusion_insert_height*tan((180-bracket_angle)/2),0]]);
+    difference() {
+        translate([extrusion_insert_width/2,0,-extrusion_insert_height])
+            rotate([90,0,-90])
+            linear_extrude(extrusion_insert_width, center = false, convexity = 10, twist = 0)
+                polygon(points=[[0,0],
+                               [0,extrusion_insert_height],
+                               [extrusion_insert_height*cos(bracket_angle-90),(extrusion_insert_height-extrusion_insert_height*sin(bracket_angle-90))],
+                               [extrusion_insert_height*tan((180-bracket_angle)/2),0]]);
+        if (bracket_angle < 90) {
+            rotate([bracket_angle/2+90, 0, 0]) translate([-extrusion_insert_width/2-e, -extrusion_insert_height, sqrt(2)*extrusion_insert_height]) cube([extrusion_insert_width+2*e, extrusion_insert_height*2, 20]);
+        }
     }
+}
 
 function screw_distance_from_edge(screw_count, screw_elongation) =
     screw_count > 1
