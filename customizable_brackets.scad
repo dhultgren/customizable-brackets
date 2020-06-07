@@ -205,7 +205,7 @@ module bridge(size, width, wall_thickness) {
             rotate([0, 270, 0])
             linear_extrude(height = width, convexity = 2)
              polygon([[side_thickness, side_thickness*tan((180-bracket_angle)/2)],
-                       [size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90), -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90)], 
+                       [(side_thickness+size)*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90), -(side_thickness+size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90)],
                        [side_thickness, side_thickness + size]]); // Main bridge
         if (wall_count >= 1) {
             translate([width/2-wall_thickness-c, 0, 0]) bridge_side(size, [[0, 0], [c, 0], [c, c]]); // Left
@@ -219,7 +219,7 @@ module bridge(size, width, wall_thickness) {
 module bridge_side(size, polygon_points){
     hull() {
         translate([0, size+side_thickness, side_thickness-e]) linear_extrude(height = e, convexity = 2) polygon(points = polygon_points);
-        translate([0, -(size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90), size*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90)]) 
+        translate([0, -(side_thickness+size)*sin(bracket_angle-90)+side_thickness*cos(bracket_angle-90), (side_thickness+size)*cos(bracket_angle-90)+side_thickness*sin(bracket_angle-90)])
             rotate([bracket_angle,0,0])
                 linear_extrude(height = e, convexity = 2)
                     polygon(points = polygon_points);
