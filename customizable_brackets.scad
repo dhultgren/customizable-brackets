@@ -2,8 +2,8 @@
 * Ultimate Customizable Corner Brackets
 * https://www.thingiverse.com/thing:3007147
 * By Daniel Hultgren https://www.thingiverse.com/Hultis
-* Version 1.3
-* 2020-05-07
+* Version 1.4
+* 2020-06-08
 */
 
 /* [Basic settings] */
