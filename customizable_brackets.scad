@@ -39,7 +39,7 @@ extrusion_base = 20;
 // Set how many walls you want. One wall doesn't play well with multiple bracket mode.
 wall_count = 2; // [0 : 1 : 2]
 // Set lower if you think the side walls are too thick.
-max_wall_thickness = 8;
+max_wall_thickness = 10;
 // Set this if you want to use these above your existing brackets. Typical 2020 brackets have a size of 20 and side thickness of 3.
 cutout_size = 0;
 cutout_side_thickness = 3;
@@ -76,8 +76,8 @@ bottom_screw_distance = screw_distance_from_edge(side_length, side_thickness, bo
 screw_distance_from_edge = max(top_screw_distance, bottom_screw_distance);
 
 bridge_size = min(
-    bridge(top_screw_count, top_screw_elongation+screw_head_size, top_screw_distance),
-    bridge(bottom_screw_count, bottom_screw_elongation+screw_head_size, bottom_screw_distance));
+    bridge(side_length, side_thickness, top_screw_count, screw_head_margin, top_screw_elongation+screw_head_size, top_screw_distance, cutout_size),
+    bridge(side_length, side_thickness, bottom_screw_count, screw_head_margin, bottom_screw_elongation+screw_head_size, bottom_screw_distance, cutout_size));
 
 main();
 
@@ -282,14 +282,24 @@ function screw_distance_from_edge(side_length, side_thickness, screw_count, scre
         ? min_screw_distance
         : (usable_side-screw_head_height)*0.4+min_screw_distance;
 
-function bridge(screw_count, total_screw_size, screw_distance_from_edge) =
+function bridge(side_length, side_thickness, screw_count, screw_head_margin, total_screw_size, screw_distance_from_edge, cutout_size) =
+    let(max_possible_bridge = side_length-side_thickness-screw_distance_from_edge-total_screw_size*screw_count-cutout_size)
     screw_count > 1
-        ? max(side_length - side_thickness - screw_distance_from_edge - total_screw_size*screw_count + cutout_size, 0)
+        ? max(max_possible_bridge/screw_count+cutout_size, 0)
         : side_length - screw_distance_from_edge - total_screw_size / 2 - side_thickness - screw_head_margin;
+
+
+
+
+
+/**********************************
+       Unit tests start here
+**********************************/
 
 //unit_tests();
 module unit_tests() {
     screw_distance_from_edge_tests();
+    bridge_size_tests();
 }
 
 module screw_distance_from_edge_tests() {
@@ -314,6 +324,16 @@ module screw_distance_from_edge_tests() {
     assert_with_message(screw_distance_from_edge(50, 5, 2, 5, 10, 0.5, 10, 0), 12.5);
 }
 
+module bridge_size_tests() {
+    // one screw on basic bracket
+    assert_with_message(bridge(30, 5, 1, 0.5, 10, 8, 0), 11.5);
+    // single screw with cutout
+    assert_with_message(bridge(40, 5, 1, 0.5, 10, 8, 20), 21.5);
+    // two screws with cutout
+    assert_with_message(bridge(50, 5, 2, 0.5, 10, 8, 20), 18.5);
+    // three screws on long bracket
+    assert_with_message(bridge(80, 8, 3, 0.5, 10, 12, 0), 10);
+}
 
 module assert_with_message(actual, expected) {
     allowed_error = 0.0001;
